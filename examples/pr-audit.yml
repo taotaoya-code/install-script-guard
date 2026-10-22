@@ -1,0 +1,82 @@
+# 示例：在 PR 上跑 install-script-guard
+#
+# 复制到你的项目里：.github/workflows/install-script-audit.yml
+# 效果：每个 PR 只审计改动过的 shell 脚本，结果标在 diff 上 + 贴一条 Markdown 评论。
+#
+# 想卡住合并就把 fail-on 保持 high；只想看报告改成 none。
+
+name: install-script-audit
+
+on:
+  pull_request:
+    paths:
+      - "**/*.sh"
+      - "**/*.bash"
+
+permissions:
+  contents: read
+  pull-requests: write      # 发评论需要
+  security-events: write    # 上传 SARIF 需要
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # 需要历史来计算 diff
+
+      # 只审本次 PR 改动过的脚本，避免历史遗留问题淹没新问题
+      - name: Collect changed scripts
+        id: changed
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          files=$(git diff --name-only --diff-filter=ACMR "$base" "$head" \
+                  | grep -E '\.(sh|bash)$' || true)
+          if [[ -z "$files" ]]; then
+            echo "no shell scripts changed"
+            echo "paths=" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed:"; echo "$files"
+            echo "paths=$(echo "$files" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 1) SARIF：把问题标到 PR 的 Files changed 里，并按 high 卡住合并
+      - name: Audit (sarif, gates merge)
+        if: steps.changed.outputs.paths != ''
+        uses: taotaoya-code/install-script-guard@v0.1.0
+        with:
+          paths: ${{ steps.changed.outputs.paths }}
+          repo: ${{ github.repository }}
+          fail-on: high
+          format: sarif
+          upload-sarif: "true"
+
+      # 2) Markdown：同一批文件再生成一份给人看的报告，用于评论
+      - name: Audit (markdown, never fails)
+        id: md
+        if: always() && steps.changed.outputs.paths != ''
+        uses: taotaoya-code/install-script-guard@v0.1.0
+        with:
+          paths: ${{ steps.changed.outputs.paths }}
+          repo: ${{ github.repository }}
+          fail-on: none
+          format: md
+
+      - name: Post report as PR comment
+        if: always() && steps.md.outputs.report-path != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          {
+            echo '<!-- install-script-guard -->'
+            echo '## 安装脚本审计'
+            echo ''
+            cat "${{ steps.md.outputs.report-path }}"
+          } > /tmp/comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/comment.md
