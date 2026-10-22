@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Audit this repository's own scripts
-        run: python isg.py . --repo "${{ github.repository }}" --fail-on high
+        run: python isg.py . --repo "${{ github.repository }}" --exclude tests/fixtures --fail-on high
       - name: Audit the bundled real-world fixture
         run: |
           python isg.py tests/fixtures \
