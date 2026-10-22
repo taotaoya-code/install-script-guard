@@ -1,20 +1,22 @@
 # install-script-guard
 
-> 一键安装脚本的供应链风险审计器。零依赖，单文件，可离线。
 > Deterministic supply-chain audit for `curl | bash` style install scripts.
+> Zero dependencies, single file, works offline.
 
 [![CI](https://github.com/taotaoya-code/install-script-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/taotaoya-code/install-script-guard/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
+[中文说明](README.zh-CN.md)
+
 ---
 
-## 为什么做这个
+## Why this exists
 
-`bash <(curl -fsSL ...)` 这类一行安装脚本到处都是。它们的共同问题是：**执行发生在校验之前**。
+One-line installers are everywhere: `bash <(curl -fsSL ...)`. They all share the same flaw — **execution happens before verification**.
 
-一个真实的例子（来自我自己的仓库，不是编的）：
+A real example, taken from a script I maintain (not a hypothetical):
 
 ```bash
 RELEASE_REPO="${VPS_RELEASE_REPO:-oldaccount/vps-benchmark-public}"
@@ -27,50 +29,50 @@ fi
 curl -fL "${BASE_URL}/${ASSET_TGZ}" -o "${TMP_DIR}/${ASSET_TGZ}"
 ```
 
-三处问题，任何一处都能让安装静默失败：
+Three separate failures, each of which breaks the install silently:
 
-1. **写死了旧账号名** —— 账号改名后全靠 GitHub 的 301 重定向兜着；重定向一旦被回收，所有已发出去的命令当场全挂，且没有任何提示。
-2. **走了 `releases/latest`** —— 同一份脚本在不同时间装出不同版本，用户报的问题复现不了。
-3. **那个 release 其实不存在** —— 上游从未发布过该资产，用户只会看到 curl 的原始错误。
+1. **A hard-coded owner.** The account was renamed; the old name only works because GitHub keeps a 301 redirect alive. Once that redirect is reclaimed, every command already distributed to users dies at once, with no error message.
+2. **`releases/latest`.** The same script installs different versions on different days. User bug reports become unreproducible.
+3. **The release never existed.** The upstream never published that asset. Users only see curl's raw error.
 
-这些不是理论风险，是真实发生过的事故。`isg` 把它们变成可以在 CI 里拦住的东西。
+None of this is theoretical. `isg` turns these into things CI can block.
 
-## 快速开始
+## Quick start
 
 ```bash
 git clone https://github.com/taotaoya-code/install-script-guard
 cd install-script-guard
 
-# 扫当前目录
+# scan the current directory
 python3 isg.py .
 
-# 扫指定脚本，并声明当前仓库用于一致性检查
-python3 isg.py install.sh script/*.sh --repo owner/name
+# scan specific scripts, declaring the current repo for consistency checks
+python3 isg.py install.sh scripts/*.sh --repo owner/name
 
-# 只看 high 级问题
-python3 isg.py . --fail-on high --format json | jq '.findings[] | select(.severity=="high")'
+# only high severity, machine readable
+python3 isg.py . --fail-on high --format json
 ```
 
-无需 `pip install`。Windows 上用 `python isg.py` 即可。
+No `pip install` needed. On Windows use `python isg.py`.
 
-## 检测规则
+## Rules
 
-| 规则 | 级别 | 检测内容 |
+| Rule | Severity | What it detects |
 |---|---|---|
-| `ISG001` | high | 把网络内容直接交给 shell 执行（`curl \| bash`、`bash <(curl ...)`） |
-| `ISG002` | high | 下载了归档文件，但全文没有任何 sha256 校验 |
-| `ISG003` | high | 硬编码的 owner 与当前仓库不一致（改名即静默失效）；无 `--repo` 时降为 medium |
-| `ISG004` | medium | 存在 `releases/latest` 分支（可用 `RELEASE_TAG` 覆盖时降为 low） |
-| `ISG005` | high | 先要求 root，再执行刚从网络取回的内容 |
-| `ISG006` | medium | 缺少 errexit（`set -e`）；已有 `-e` 但缺 `pipefail` 时为 low |
-| `ISG007` | low | 用了 `mktemp` 但没有 `trap` 清理 |
-| `ISG008` | medium | `curl` 缺少 `-f`（404 被当成功）或缺 `--max-time` |
-| `ISG009` | medium | `rm -rf` 后的变量未加引号 |
-| `ISG010` | low | 从 release 下载但缺少「资产不存在」的显式提示 |
+| `ISG001` | high | Network content piped directly into a shell (`curl \| bash`, `bash <(curl ...)`) |
+| `ISG002` | high | Archive downloaded, but no sha256 verification anywhere in the file |
+| `ISG003` | high | Hard-coded owner differs from the current repo (silent break after a rename); medium without `--repo` |
+| `ISG004` | medium | A `releases/latest` branch exists (low when `RELEASE_TAG` can override it) |
+| `ISG005` | high | Requires root, then executes content just fetched from the network |
+| `ISG006` | medium | Missing errexit (`set -e`); low when `-e` is set but `pipefail` is not |
+| `ISG007` | low | `mktemp` used without a `trap` cleanup |
+| `ISG008` | medium | `curl` missing `-f` (404 saved as success) or `--max-time` |
+| `ISG009` | medium | `rm -rf` on an unquoted variable |
+| `ISG010` | low | Downloads from a release but has no explicit "asset not found" message |
 
-规则实现都在 `isg.py` 的 `RULES` 列表里，每条一个独立函数，可以单独测试或替换。
+Every rule is an independent function in the `RULES` list inside `isg.py`, so it can be tested or replaced in isolation.
 
-## 在 CI 里用
+## Use it in CI
 
 ```yaml
 name: install-script-audit
@@ -84,66 +86,74 @@ jobs:
       - uses: taotaoya-code/install-script-guard@v0.1.0
         with:
           paths: "."
-          fail-on: high        # high 级问题直接让 CI 失败
+          fail-on: high         # block the PR on high severity findings
           format: sarif
-          upload-sarif: "true" # 结果进入 Code Scanning
+          upload-sarif: "true"  # surface results in Code Scanning
 ```
 
-只想要报告不想卡流程：`fail-on: none`。
+Report only, never block: `fail-on: none`.
 
-## 输出格式
+Findings show up as annotations on the changed lines in the PR's Files changed tab when `format: sarif` and `upload-sarif: "true"`.
 
-四种，同一个扫描引擎：
+## Output formats
 
-| `--format` | 用途 |
+Four renderers, one engine:
+
+| `--format` | Purpose |
 |---|---|
-| `md`（默认） | 给人看的 Markdown 表格 + 修复建议 |
-| `json` | 给脚本/其他工具消费 |
-| `sarif` | GitHub Code Scanning，可在 PR 的 Files changed 里直接标行 |
-| `codex` | 生成可投喂给 Codex 的提示词，用于产出具体补丁 |
+| `md` (default) | Human-readable table plus fix suggestions |
+| `json` | For scripts and other tooling |
+| `sarif` | GitHub Code Scanning; annotates lines in the PR diff |
+| `codex` | Emits a constrained prompt for Codex to turn into patches |
 
-### 与 Codex 配合
+### Working with Codex
 
-`--format codex` 输出一份带约束的任务说明（要求给出行号、给出可应用的 diff、不得引入新依赖、误报必须说明理由）。典型用法：
+`--format codex` produces a task brief with explicit constraints: cite file and line, give an applicable diff, do not introduce new dependencies, and state the reasoning when a finding is a false positive.
 
 ```bash
 python3 isg.py . --format codex > /tmp/isg-prompt.md
 codex exec "$(cat /tmp/isg-prompt.md)"
 ```
 
-这样分工是：**确定性规则负责"找出问题"，Codex 负责"解释并写补丁"**。前者不需要模型、结果稳定可复现；后者不参与判断，只参与表达。这个边界是刻意设计的——让 LLM 决定"有没有漏洞"是不可靠的。
+The split is deliberate: **the deterministic rules decide whether a problem exists; Codex only explains and writes the patch.** Letting a model judge "is this vulnerable" is not reliable, so it never gets that vote.
 
-## 退出码
+## Exit codes
 
-| 退出码 | 含义 |
+| Code | Meaning |
 |---|---|
-| `0` | 没有达到 `--fail-on` 阈值的问题 |
-| `1` | 存在问题，达到或超过阈值 |
+| `0` | Nothing at or above the `--fail-on` threshold |
+| `1` | At least one finding at or above the threshold |
 
-`--fail-on` 取 `high`（默认）/ `medium` / `low` / `none`。
+`--fail-on` accepts `high` (default), `medium`, `low`, `none`.
 
-## 设计取舍
+## Design trade-offs
 
-- **零依赖**：只用 Python 标准库。CI 里不用装任何东西，离线能用，审计工具本身不该成为供应链风险。
-- **单文件核心**：`isg.py` 独立可跑，方便复制进别人的仓库当脚本用。
-- **规则而非模型**：判定靠正则与结构化解析。误报率可量化、结果可复现，不用 API key。
-- **不自动修复**：只报告。自动改别人的安装脚本风险太高，修复交给人或 Codex。
+- **Zero dependencies.** Standard library only. Nothing to install in CI, works offline. An audit tool should not itself become a supply-chain risk.
+- **Single-file core.** `isg.py` runs standalone, so it can be copied into another repo as a script.
+- **Rules, not models.** Detection is regex and structural parsing. False-positive rate is measurable and results are reproducible, with no API key involved.
+- **No auto-fix.** It reports only. Rewriting someone else's installer automatically is too risky; fixes go to a human or to Codex.
 
-## 局限（明确说清）
+## Limitations (stated plainly)
 
-- 只做**静态文本分析**，语法层面。不解析 shell 语义，跨文件的数据流不追踪（例如变量在 A 文件赋值、B 文件使用）。
-- 对高度混淆或动态拼接（`eval "$(...)"`）的脚本会漏报。
-- 规则集是**已知模式**，不是完备的漏洞检测。它拦的是常见事故，不是所有攻击。
-- `--repo` 一致性检查依赖传入的仓库名，CI 里用 `${{ github.repository }}` 才有意义。
+- **Static text analysis only.** No shell semantics, no cross-file data-flow tracking (a variable assigned in file A and used in file B is not followed).
+- **Misses dynamic construction.** Heavily obfuscated or `eval "$(...)"`-built scripts will slip through.
+- **Known patterns, not complete vulnerability detection.** It catches common failure modes, not all attacks.
+- **`--repo` consistency checking depends on the value passed in.** In CI, use `${{ github.repository }}` for it to mean anything.
 
-## 开发
+## Development
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-测试包含真实样本：`tests/fixtures/real-vps-benchmark-quick-install.sh` 是一个实际部署过的一键安装脚本，CI 里会断言它至少触发一条 high 级告警——保证规则不是只在玩具样本上有效。
+The suite includes a real fixture: `tests/fixtures/real-vps-benchmark-quick-install.sh` is an installer that was actually deployed. CI asserts it triggers at least one high severity finding — so the rules are proven against real code, not just toy samples.
+
+Current status: 43 tests, passing on Ubuntu / Windows / macOS across Python 3.8 and 3.12.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). A new rule needs two tests: one that must match, one that must not.
 
 ## License
 
-MIT，见 [LICENSE](LICENSE)。
+MIT — see [LICENSE](LICENSE).
