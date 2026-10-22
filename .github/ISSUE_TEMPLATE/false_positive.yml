@@ -1,0 +1,35 @@
+name: 误报 (false positive)
+description: 规则报了问题，但这段代码实际上是安全的
+title: "[false-positive] ISG0XX "
+labels: ["false positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        误报的优先级高于漏报——误报多了，使用者会把整个工具关掉。请尽量说清「为什么这段代码安全」。
+  - type: input
+    id: rule
+    attributes:
+      label: 规则号
+      placeholder: ISG003
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: 被误判的代码
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: why-safe
+    attributes:
+      label: 为什么它是安全的
+      description: 例如：这个 owner 是上游只读镜像，不会改名；或校验在上级脚本里已完成
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 你建议怎么改规则
+      description: 加白名单？降级？还是改检测条件？
