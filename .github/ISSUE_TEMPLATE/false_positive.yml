@@ -1,35 +1,35 @@
-name: 误报 (false positive)
-description: 规则报了问题，但这段代码实际上是安全的
+name: False positive
+description: A rule flagged code that is actually safe
 title: "[false-positive] ISG0XX "
 labels: ["false positive"]
 body:
   - type: markdown
     attributes:
       value: |
-        误报的优先级高于漏报——误报多了，使用者会把整个工具关掉。请尽量说清「为什么这段代码安全」。
+        False positives rank above misses here — enough of them and users disable the tool entirely. Please be specific about *why* the code is safe.
   - type: input
     id: rule
     attributes:
-      label: 规则号
+      label: Rule id
       placeholder: ISG003
     validations:
       required: true
   - type: textarea
     id: code
     attributes:
-      label: 被误判的代码
+      label: Code that was flagged
       render: bash
     validations:
       required: true
   - type: textarea
     id: why-safe
     attributes:
-      label: 为什么它是安全的
-      description: 例如：这个 owner 是上游只读镜像，不会改名；或校验在上级脚本里已完成
+      label: Why it is safe
+      description: For example — this owner is a read-only mirror that will never be renamed, or verification already happened in the parent script
     validations:
       required: true
   - type: textarea
     id: suggestion
     attributes:
-      label: 你建议怎么改规则
-      description: 加白名单？降级？还是改检测条件？
+      label: Suggested rule change
+      description: Allowlist, severity downgrade, or a different detection condition?
