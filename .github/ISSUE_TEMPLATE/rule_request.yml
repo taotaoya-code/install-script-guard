@@ -1,38 +1,38 @@
-name: 规则建议
-description: 提出一条新的检测规则
+name: Rule proposal
+description: Propose a new detection rule
 title: "[rule] "
 labels: ["enhancement"]
 body:
   - type: textarea
     id: risk
     attributes:
-      label: 这条规则要防什么风险
-      description: 最好附一个真实事故或真实脚本片段
+      label: What risk does this rule cover
+      description: Ideally attach a real incident or a real script fragment
     validations:
       required: true
   - type: textarea
     id: detection
     attributes:
-      label: 怎么检测
-      description: 大概的正则或判定条件；说明会误伤什么
+      label: How to detect it
+      description: Rough regex or condition; note what it might wrongly flag
       render: text
     validations:
       required: true
   - type: dropdown
     id: severity
     attributes:
-      label: 建议级别
+      label: Proposed severity
       options: ["high", "medium", "low"]
     validations:
       required: true
   - type: checkboxes
     id: constraints
     attributes:
-      label: 设计约束确认
+      label: Design constraints
       options:
-        - label: 该规则可以用确定性方法实现（不依赖 LLM）
+        - label: This can be implemented deterministically (no LLM involved)
           required: true
-        - label: 不需要引入第三方依赖
+        - label: No third-party dependencies are needed
           required: true
-        - label: 我理解需要同时提供「应命中」和「不应命中」两个测试
+        - label: I understand both a "must match" and a "must not match" test are required
           required: true
