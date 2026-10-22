@@ -1,0 +1,74 @@
+name: install-script-guard
+description: Audit one-line install scripts for supply-chain risks (deterministic rules, zero dependencies)
+
+branding:
+  icon: shield
+  color: orange
+
+inputs:
+  paths:
+    description: Files or directories to scan, space separated
+    required: false
+    default: "."
+  repo:
+    description: Current repository as owner/name; used to detect hard-coded mismatched owners
+    required: false
+    default: ${{ github.repository }}
+  fail-on:
+    description: "Fail the step at this severity: high | medium | low | none"
+    required: false
+    default: "high"
+  format:
+    description: "Report format: md | json | sarif"
+    required: false
+    default: "md"
+  upload-sarif:
+    description: "Write report.sarif for GitHub Code Scanning (true/false)"
+    required: false
+    default: "false"
+
+outputs:
+  report-path:
+    description: Path of the generated report file
+    value: ${{ steps.scan.outputs.report-path }}
+  high-count:
+    description: Number of high severity findings
+    value: ${{ steps.scan.outputs.high-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run install-script-guard
+      id: scan
+      shell: bash
+      env:
+        ISG_PATHS: ${{ inputs.paths }}
+        ISG_REPO: ${{ inputs.repo }}
+        ISG_FAIL_ON: ${{ inputs.fail-on }}
+        ISG_FORMAT: ${{ inputs.format }}
+        ISG_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -Eeuo pipefail
+        ext="md"
+        case "$ISG_FORMAT" in
+          json) ext="json" ;;
+          sarif) ext="sarif" ;;
+          *) ext="md" ;;
+        esac
+        report="${RUNNER_TEMP:-/tmp}/isg-report.${ext}"
+        # shellcheck disable=SC2086
+        python3 "$ISG_ACTION_PATH/isg.py" $ISG_PATHS \
+          --repo "$ISG_REPO" \
+          --format "$ISG_FORMAT" \
+          --fail-on "$ISG_FAIL_ON" > "$report" || status=$?
+        echo "report-path=$report" >> "$GITHUB_OUTPUT"
+        high=$(grep -c '| high |' "$report" 2>/dev/null || true)
+        echo "high-count=${high:-0}" >> "$GITHUB_OUTPUT"
+        cat "$report"
+        exit "${status:-0}"
+
+    - name: Upload SARIF to Code Scanning
+      if: ${{ always() && inputs.upload-sarif == 'true' && inputs.format == 'sarif' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.scan.outputs.report-path }}
