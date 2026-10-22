@@ -1,0 +1,47 @@
+name: Bug 报告
+description: 报告崩溃、错误输出或规则行为不符预期
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。提交前请先跑一遍 `python3 isg.py . --format json` 确认能复现。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际输出与预期输出的差异
+      placeholder: 期望扫描通过，实际报了 ISG00X，但这个脚本是安全的，因为……
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: 触发脚本（脱敏后）
+      description: 只贴相关的那几行即可，务必去掉真实域名、token、IP
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: 命令与输出
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: isg 版本
+      description: "`python3 isg.py --version` 的输出"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      description: 操作系统 + Python 版本
+      placeholder: Windows 11 / Python 3.12.5
+    validations:
+      required: true
