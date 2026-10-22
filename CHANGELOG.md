@@ -1,22 +1,23 @@
 # Changelog
 
-本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+This project follows [Semantic Versioning](https://semver.org/).
 
 ## [0.1.0] - 2026-10-22
 
-首个可用版本。
+First usable release.
 
-### 新增
+### Added
 
-- 10 条确定性检测规则（`ISG001`–`ISG010`），覆盖远程脚本执行、缺校验、硬编码仓库地址、`releases/latest`、root 执行、缺 errexit、临时目录不清理、curl 缺失败保护、`rm -rf` 未加引号、下载失败无提示。
-- 四种输出格式：Markdown、JSON、SARIF 2.1.0、Codex 提示词。
-- `--repo owner/name` 一致性检查：发现脚本里硬编码的 owner 与当前仓库不一致。
-- `--fail-on high|medium|low|none` 出口码门槛，可直接用作 CI 合并条件。
-- 复合型 GitHub Action（`action.yml`），支持 SARIF 上传到 Code Scanning。
-- 41 个单元测试，含一个真实部署过的一键安装脚本作为回归样本。
-- CI 矩阵：Ubuntu / Windows / macOS × Python 3.8 / 3.12，外加 self-audit 与 shellcheck。
+- 10 deterministic detection rules (`ISG001`–`ISG010`) covering: remote code piped into a shell, missing integrity verification, hard-coded repository owners, `releases/latest`, root execution of downloaded content, missing errexit, missing trap cleanup, `curl` without failure/timeout guards, unquoted variables in destructive deletes, and silent download failures.
+- Four output formats: Markdown, JSON, SARIF 2.1.0, and a Codex prompt.
+- `--repo owner/name` consistency check that reports a hard-coded owner differing from the current repository.
+- `--exclude PATTERN` to skip paths by directory prefix or glob.
+- `--fail-on high|medium|low|none` exit-code gate, usable directly as a CI merge condition.
+- Composite GitHub Action (`action.yml`) with optional SARIF upload to Code Scanning.
+- 43 unit tests, including a regression fixture taken from an installer that was actually deployed.
+- CI matrix: Ubuntu / Windows / macOS × Python 3.8 / 3.12, plus self-audit and shellcheck.
 
-### 已知局限
+### Known limitations
 
-- 仅静态文本分析，不追踪跨文件数据流。
-- 对 `eval "$(...)"` 这类动态拼接会漏报。
+- Static text analysis only; no cross-file data-flow tracking.
+- Dynamic construction such as `eval "$(...)"` is not detected.
