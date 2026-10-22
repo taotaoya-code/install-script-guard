@@ -1,26 +1,26 @@
-## 这个 PR 做了什么
+## What does this PR do
 
-<!-- 一句话说明。 -->
+<!-- One sentence. -->
 
-## 类型
+## Type
 
-- [ ] 修 bug
-- [ ] 新增检测规则（规则号：`ISG0__`）
-- [ ] 改进报告输出
-- [ ] 文档 / CI
+- [ ] Bug fix
+- [ ] New detection rule (rule id: `ISG0__`)
+- [ ] Report output improvement
+- [ ] Docs / CI
 
-## 自检
+## Self-check
 
-- [ ] `python3 -m unittest discover -s tests -v` 全绿
-- [ ] `python3 isg.py . --repo owner/name` 无新增告警
-- [ ] 新增规则时，同时提供了「应命中」和「不应命中」两个测试
-- [ ] 改动了规则行为时，README 的规则表已同步
-- [ ] 未引入第三方依赖
+- [ ] `python3 -m unittest discover -s tests -v` passes
+- [ ] `python3 isg.py . --repo owner/name` reports no new findings
+- [ ] For a new rule: both a "must match" and a "must not match" test are included
+- [ ] Rules table in the README updated if rule behaviour changed
+- [ ] No third-party dependencies added
 
-## 对误报的影响
+## Impact on false positives
 
-<!-- 新规则会误伤哪些写法？如果有，说明白名单或降级策略。 -->
+<!-- Which existing coding styles could this rule now flag by mistake? If any, describe the allowlist or downgrade path. -->
 
-## 关联 issue
+## Related issue
 
 <!-- Closes #123 -->
