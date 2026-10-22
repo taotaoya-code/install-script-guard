@@ -1,38 +1,38 @@
-# 贡献指南 / Contributing
+# Contributing
 
-## 报告问题
+## Reporting a problem
 
-提交 issue 时请附上：
+When opening an issue, include:
 
-1. `python3 isg.py <你的文件> --format json` 的输出
-2. 触发告警的那几行脚本（脱敏后）
-3. Python 版本与操作系统
+1. The output of `python3 isg.py <your-file> --format json`
+2. The few lines of script that triggered the finding (with secrets removed)
+3. Your Python version and operating system
 
-如果是**误报**，请在标题里写明 `false positive`，并说明为什么这段代码实际是安全的——误报比漏报更值得优先修。
+If it is a **false positive**, put `false positive` in the title and explain why the code is actually safe. False positives are more urgent than misses — enough of them and people switch the whole tool off.
 
-## 加一条新规则
+## Adding a rule
 
-1. 在 `isg.py` 里新增 `check_xxx(ctx) -> List[Finding]`，保持纯函数、无副作用。
-2. 在 `RULES` 列表里注册：`(规则号, 级别, 标题, 函数, 分类)`。
-3. 在 `tests/test_rules.py` 里**同时**写两个用例：一个必须命中，一个必须不命中。
-4. 在 README 的规则表里补一行。
+1. Add a `check_xxx(ctx) -> List[Finding]` function in `isg.py`. Keep it pure, no side effects.
+2. Register it in the `RULES` list: `(rule_id, severity, title, function, category)`.
+3. In `tests/test_rules.py`, write **two** cases: one that must match, one that must not.
+4. Add a row to the rules table in the README.
 
-规则号从 `ISG011` 往后顺延，不要复用已废弃的号。
+Rule ids continue from `ISG011` upwards. Never reuse a retired number.
 
-## 规则的设计约束
+## Constraints every rule must respect
 
-- **确定性优先**：不调用 LLM 做判定。判定必须可复现。
-- **零依赖**：不引入第三方包。
-- **宁可漏报，不可误报泛滥**：误报会让使用者关掉整个工具。
-- 每条 `Finding` 必须带 `fix`，只报问题不给方向没有价值。
+- **Deterministic first.** No LLM calls for detection. A judgement must be reproducible.
+- **Zero dependencies.** No third-party packages.
+- **Prefer missing a case over drowning users in false positives.** Noise gets the tool disabled.
+- Every `Finding` must carry a `fix`. Flagging a problem without a direction is not useful.
 
-## 提交 PR
+## Pull requests
 
-- 一个 PR 只做一件事（一条规则 / 一个 bug）。
-- CI 必须全绿：单测、self-audit、shellcheck。
-- 改动了规则行为时，同步更新 README 的规则表。
+- One PR, one thing (a single rule, or a single bug).
+- CI must be green: unit tests, self-audit, shellcheck.
+- If you change rule behaviour, update the rules table in the README in the same PR.
 
-## 开发命令
+## Development commands
 
 ```bash
 python3 -m unittest discover -s tests -v
