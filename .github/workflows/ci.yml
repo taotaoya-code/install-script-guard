@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (python ${{ matrix.python }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.8", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  self-audit:
+    name: self-audit (dogfood)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit this repository's own scripts
+        run: python isg.py . --repo "${{ github.repository }}" --fail-on high
+      - name: Audit the bundled real-world fixture
+        run: |
+          python isg.py tests/fixtures \
+            --repo "${{ github.repository }}" \
+            --format json --fail-on none > /tmp/fixture.json
+          python - <<'PY'
+          import json, sys
+          data = json.load(open("/tmp/fixture.json"))
+          print("fixture findings:", {k: v for k, v in data["summary"].items()})
+          assert data["summary"]["high"] >= 1, "expected the real-world fixture to trigger at least one high finding"
+          PY
+
+  shellcheck:
+    name: shellcheck fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck --version
+          find . -name '*.sh' -print0 | xargs -0 -r shellcheck -S warning || true
